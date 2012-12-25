@@ -1,0 +1,18 @@
+<script type="text/x-handlebars-template" id="tokenTemplate">
+  <li class="token-item" data-token-id="{{id}}" data-token-name="{{name}}">
+    <input type="hidden" value="{{id}}" name="{{inputName}}[]">
+    <span class="token-item-name">{{name}}</span>
+    <a class="token-item-remove">&times;</a>
+  </li>
+</script>
+<script type="text/x-handlebars-template" id="tokenWrapperTemplate">
+  <ul class="token-wrapper">
+    <li class="token-item-input">
+      <input type="text" class="token-input" autocomplete="off" placeholder="{{placeholder}}">
+      <ul class="token-results"></ul>
+    </li>
+  </ul>
+</script>
+<script type="text/x-handlebars-template" id="tokenResultTemplate">
+  <li class="token-result{{#if isSelected}} token-disabled{{/if}}" data-token-id="{{id}}" data-token-result='{{{data}}}'>{{{name}}}</li>
+</script>
