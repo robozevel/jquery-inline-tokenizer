@@ -1,8 +1,15 @@
-(function($) {
+;(function($) {
+  "use strict";
+
   var
     defaults = {
+      isRTL: true,
       placeholder: "חיפוש",
       resultsDelay: 100,
+      searchDelay: 200,
+      searchParameter: "q",
+      searchUrl: null,
+      parseResults: null,
       createWrapper: Handlebars.compile( $("#tokenWrapperTemplate").html() ),
       formatToken: Handlebars.compile( $("#tokenTemplate").html() ),
       formatTokens: function(items, inputName) {
@@ -132,6 +139,11 @@
     return tokenList;
   }
 
+  function autoResizeWidth(input) {
+    input.style.width = "auto";
+    input.style.width = (input.scrollWidth + input.offsetWidth - input.clientWidth) + "px";
+  }
+
   function tokenize(options) {
     var
       $originalInput = $(this),
@@ -144,31 +156,26 @@
       inputName = $originalInput.attr("name"),
       cache = TokenList(options.cache.concat(options.populateWith)),
       selectedTokens = TokenList(options.populateWith),
-      resultsTimeout = null;
+      searchRequest = null;
 
-    function searchCache(q, callback) {
-      if (!q) return null;
-      q = String(q).toLowerCase();
-      return $.map(cache.tokens, function(token) {
-        if (token.name.toLowerCase().indexOf(q) !== -1) return token;
+    function searchCache(q) {
+      return $.Deferred(function(deferred) {
+        var results = $.map(cache.tokens, function(token) {
+          if (token.name.toLowerCase().indexOf(q) !== -1) return token;
+        });
+        deferred[results.length ? "resolve" : "reject"](results, q);
       });
     }
 
-    function search(q, options) {
-      var callback, results = searchCache(q);
+    function searchServer(q) {
+      var searchOptions = {
+        url: options.searchUrl,
+        data: {}
+      };
 
-      options = options || {};
+      searchOptions.data[options.searchParameter] = q;
 
-      if (results === null || results.length === 0) {
-        callback = $.isFunction(options.error) ? options.error : $.noop;
-      } else {
-        callback = $.isFunction(options.success) ? options.success : $.noop;
-      }
-      
-      return setTimeout(function() {
-        callback.call(this, results, q)
-      });
-
+      return $.ajax(searchOptions);
     }
 
     function populateResults(results, q) {
@@ -178,15 +185,16 @@
       selectResult($results.find("li").not(selectors.disabled).first());
     }
 
-    function clearResults() {
-      $results.empty();
+    function appendResults(results, q) {
+      if (results && results.length) {
+        var $prevResults = $results.find("li").not(selectors.disabled);
+        $results.append(options.formatResults(results, q, selectedTokens.ids()));
+        if (!$prevResults.length) selectResult($results.find("li").not(selectors.disabled).first());
+      }
     }
 
-    function delayClearResults() {
-      clearTimeout(resultsTimeout);
-      resultsTimeout = setTimeout(function() {
-        if ($input.is(":focus") === false && $results.is(":hover") === false) clearResults();
-      }, options.resultsDelay);
+    function clearResults() {
+      $results.empty();
     }
 
     function addToken($result) {
@@ -278,24 +286,47 @@
       }));
     }
 
+    var delayedClearResults = debounce(function() {
+      if ($input.is(":focus") === false && $results.is(":hover") === false) clearResults();
+    }, options.resultsDelay);
+
+    var search = debounce(function(q) {
+      q = String(q).toLowerCase();
+
+      if (!q) {
+        clearResults();
+        return;
+      }
+
+      searchCache(q)
+        .done(populateResults)
+        .fail(clearResults);
+
+      if (options.searchUrl) {
+        // Cancel previous request
+        if (searchRequest) searchRequest.abort();
+
+        searchRequest = searchServer(q)
+          .success(function(results) {
+            if (options.parseResults) results = options.parseResults(results);
+            appendResults(results, q);
+          });
+      }
+
+    }, options.searchDelay);
+
     // Bind events
     $input
-      .on(inputEvent, function() {
-        var q = $input.val().trim();
+      .on(inputEvent, function(e) {
+        // Search cache & server
+        search($input.val().trim());
 
         // Adjust width while typing
-        this.style.width = "auto";
-        this.style.width = (this.scrollWidth + this.offsetWidth - this.clientWidth) + "px";
-
-        search(q, {
-          success: populateResults,
-          error: clearResults()
-        });
-
+        autoResizeWidth(this);
       })
       .on("click", displayCachedTokens)
       .on("blur", function(e) {
-        delayClearResults();
+        delayedClearResults();
         deselectTokens();
       })
       // Enable navigating results
@@ -319,7 +350,7 @@
             break;
           case KEY.DELETE:
           case KEY.BACKSPACE:
-            if ($input.val().trim() === "") {
+            if ($input.val() === "") {
                 attemptRemoveTokens();
                 clearResults();
               }
@@ -335,7 +366,7 @@
       });
 
     $results
-      .on("mouseleave", delayClearResults)
+      .on("mouseleave", delayedClearResults)
       .on("click", selectors.result, function() {
         addToken($(this));
       });
@@ -379,6 +410,31 @@
     }
   }(String.prototype.replace));
 
+  // https://github.com/bestiejs/lodash/blob/v1.0.0-rc.3/lodash.js#L3499
+  function debounce(func, wait, immediate) {
+    var args, result, thisArg, timeoutId;
+
+    function delayed() {
+      timeoutId = null;
+      if (!immediate) {
+        result = func.apply(thisArg, args);
+      }
+    }
+    return function() {
+      var isImmediate = immediate && !timeoutId;
+      args = arguments;
+      thisArg = this;
+
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(delayed, wait);
+
+      if (isImmediate) {
+        result = func.apply(thisArg, args);
+      }
+      return result;
+    };
+  }
+
   function mapTokens(nodeList, tokens) {
     var tokensArray = [];
     switch ($.type(tokens)) {
@@ -418,10 +474,6 @@
         return tokenize.call(input, options);
     };
   }
-
-  // TODO: max results
-  // TODO: free text mode
-  // TODO: ajax mode
 
   $.Token = Token;
   
