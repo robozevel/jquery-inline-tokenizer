@@ -153,7 +153,7 @@
       $input = $wrapper.find(selectors.input),
       $itemInput = $wrapper.find(selectors.itemInput),
       $results = $wrapper.find(selectors.results),
-      inputName = $originalInput.attr("name"),
+      inputName = $originalInput.attr("name") || options.inputName,
       cache = TokenList(options.cache.concat(options.populateWith)),
       selectedTokens = TokenList(options.populateWith),
       searchRequest = null;
@@ -334,6 +334,7 @@
         switch (e.keyCode) {
           case KEY.ENTER:
             addToken(getSelectedResult());
+            e.preventDefault();
             break;
           case KEY.DOWN:
             if ($results.is(":visible")) {
@@ -439,6 +440,11 @@
     var tokensArray = [];
     switch ($.type(tokens)) {
       case "object":
+        $.each(tokens, function(id, name) {
+          tokensArray.push(Token(id, name));
+        });
+        break;
+      case "array":
         $.each(tokens, function(i, token) {
           switch ($.type(token)) {
             case "string":
@@ -449,9 +455,6 @@
               break;
           }
         });
-        break;
-      case "array":
-        tokensArray = tokens;
         break;
     }
 
