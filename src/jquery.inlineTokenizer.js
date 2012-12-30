@@ -10,6 +10,7 @@
       searchParameter: "q",
       searchUrl: null,
       parseResults: null,
+      wideResults: false,
       createWrapper: Handlebars.compile( $("#tokenWrapperTemplate").html() ),
       formatToken: Handlebars.compile( $("#tokenTemplate").html() ),
       formatTokens: function(items, inputName) {
@@ -148,7 +149,8 @@
     var
       $originalInput = $(this),
       $wrapper = $(options.createWrapper({
-        placeholder: $originalInput.attr("placeholder") || options.placeholder
+        placeholder: $originalInput.attr("placeholder") || options.placeholder,
+        wideResults: options.wideResults
       })),
       $input = $wrapper.find(selectors.input),
       $itemInput = $wrapper.find(selectors.itemInput),
@@ -246,8 +248,30 @@
       $result.removeClass(classNames.selected);
     }
 
+    function scrollToResult($result) {
+      var
+        scrollTop,
+        // containerHeight = parseInt($results.css("maxHeight"), 10),
+        containerHeight = $results.height(),
+        visibleTop = $results.scrollTop(),
+        visibleBottom = containerHeight + visibleTop,
+        resultTop = $result.position().top + $results.scrollTop(),
+        resultBottom = resultTop + $result.outerHeight();
+
+      if (resultBottom >= visibleBottom) {
+        scrollTop = resultBottom - containerHeight;
+        $results.scrollTop(scrollTop > 0 ? scrollTop : 0);
+      } else if (resultTop < visibleTop) {
+        $results.scrollTop(resultTop);
+      }
+
+    }
+
     function selectResult($result) {
-      $result.addClass(classNames.selected);
+      if ($result.length) {
+        $result.addClass(classNames.selected);
+        scrollToResult($result);
+      }
     }
 
     function selectNextResult() {
@@ -256,12 +280,12 @@
         deselectResult($selectedResult);
         $next = $selectedResult.next();
         if ($next.length) {
-          selectResult($next.addClass(classNames.selected));
+          selectResult($next);
         } else {
-          selectResult($results.find(selectors.result).first().addClass(classNames.selected));
+          selectResult($results.find(selectors.result).first());
         }
       } else {
-        selectResult($results.find(selectors.result).first().addClass(classNames.selected));
+        selectResult($results.find(selectors.result).first());
       }
     }
 
@@ -271,12 +295,12 @@
         deselectResult($selectedResult);
         $prev = $selectedResult.prev();
         if ($prev.length) {
-          selectResult($prev.addClass(classNames.selected));
+          selectResult($prev);
         } else {
-          selectResult($results.find(selectors.result).last().addClass(classNames.selected));
+          selectResult($results.find(selectors.result).last());
         }
       } else {
-        selectResult($results.find(selectors.result).last().addClass(classNames.selected));
+        selectResult($results.find(selectors.result).last());
       }
     }
 

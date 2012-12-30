@@ -35,8 +35,9 @@
   <ul class="token-wrapper">
     <li class="token-item-input">
       <input type="text" class="token-input" autocomplete="off" placeholder="{{placeholder}}">
-      <ul class="token-results"></ul>
+      {{#unless wideResults}}<ul class="token-results"></ul>{{/unless}}
     </li>
+    {{#if wideResults}}<ul class="token-results"></ul>{{/if}}
   </ul>
 </script>
 <script type="text/x-handlebars-template" id="tokenResultTemplate">
@@ -49,12 +50,14 @@ $(function() {
   var sizes = [100, 120, 140, 160];
 
   $("select[multiple]").inlineTokenizer({
-    cache: languages
+    cache: languages,
+    // wideResults: true
   }).each(function() {
     $(this).css({ "font-size": sizes.shift() + "%" });
-  });;
-  
+  });
+
 });
+
 </script>
 </head>
 <body>

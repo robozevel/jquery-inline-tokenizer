@@ -6,7 +6,6 @@
 
 .token-wrapper {
   outline: 1px solid #ccc;
-  background: #fff;
   padding: .6em .5em .4em .5em;
   margin: 0;
   font-size: 1em;
@@ -14,13 +13,14 @@
   box-shadow: 0 1px 2px rgba(0, 0, 0, .2) inset;
   cursor: text;
   direction: rtl;
+  background-color: white;
 }
 
-/*.token-wrapper:after {
+.token-wrapper:after {
   content: "";
   display: table;
   clear: both;
-}*/
+}
 
 .token-input {
   outline: none;
@@ -122,16 +122,44 @@
   border: 1px solid #ccc;
   border-top: none;
   background: #fff;
-  border-top: none;
-  /* margin-right: -.4em; */
   margin-top: .4em;
   margin-right: -.5em;
   box-shadow: 0 2px 3px rgba(0, 0, 0, .1);
   display: block;
   z-index: 1;
   -webkit-user-select: none;
+  max-height: 10em;
+  overflow: auto;
+  cursor: auto;
   /*opacity: 1;
   -webkit-transition: opacity .2s;*/
+}
+
+.token-results::-webkit-scrollbar {
+  width: 1em;
+}
+
+.token-results::-webkit-scrollbar-button {
+  display: none;
+}
+
+.token-results::-webkit-scrollbar-thumb {
+  background-color: #eee;
+  border: 2px solid white;
+  border-top-width: 3px;
+}
+
+.token-results::-webkit-scrollbar-thumb:hover {
+  background-color: #ccc;
+}
+
+.token-wrapper > .token-results {
+  position: relative;
+  border: none;
+  border-top: 1px solid #ccc;
+  margin-right: 0;
+  box-shadow: none;
+  padding-top: 2px;
 }
 
 .token-input:focus + .token-results {
@@ -147,7 +175,8 @@
 }
 
 .token-results li {
-  padding: .3em .7em;
+  padding: .3em .5em .3em 1.8em;
+  white-space: nowrap;
   cursor: pointer;
 }
 
