@@ -52,6 +52,7 @@
   margin-right: .2em;
   line-height: 1.4em;
   /*cursor: pointer;*/
+  -webkit-user-select: none;
   -webkit-transition: background .1s, color .1s;
 }
 
@@ -84,7 +85,8 @@
   font-weight: bold;
   /*opacity: .5;*/
   color: rgba(28, 42, 71, .5);
-  padding: .2em .25em .2em .25em;
+  /*padding: .2em .25em .2em .25em;*/
+  padding: .2em .2em .2em .4em;
   text-align: center;
   cursor: pointer;
   -webkit-transition: background .1s, color .1s;
@@ -127,6 +129,7 @@
   box-shadow: 0 2px 3px rgba(0, 0, 0, .1);
   display: block;
   z-index: 1;
+  -webkit-user-select: none;
   /*opacity: 1;
   -webkit-transition: opacity .2s;*/
 }
