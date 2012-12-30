@@ -1,0 +1,76 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>jQuery inlineTokenizer</title>
+<script src="lib/jquery.min.js"></script>
+<script src="lib/handlebars.min.js"></script>
+<link rel="stylesheet" type="text/css" href="src/css/inlineTokenizer.css">
+<link rel="stylesheet" type="text/css" href="src/css/Alef.css">
+<style>
+  body {
+    width: 36em;
+    margin: 0 auto;
+    text-align: center;
+    direction: rtl;
+    font-size: 11px;
+    font-family: Alef, Tahoma;
+    padding-top: 6em;
+    background: #f0f0f0;
+  }
+
+  .token-wrapper {
+    margin-bottom: 2em;
+  }
+
+</style>
+<script type="text/x-handlebars-template" id="tokenTemplate">
+  <li class="token-item" data-token-id="{{id}}" data-token-name="{{name}}">
+    <input type="hidden" value="{{id}}" name="{{inputName}}[]">
+    <span class="token-item-name">{{name}}</span>
+    <a class="token-item-remove">&times;</a>
+  </li>
+</script>
+<script type="text/x-handlebars-template" id="tokenWrapperTemplate">
+  <ul class="token-wrapper">
+    <li class="token-item-input">
+      <input type="text" class="token-input" autocomplete="off" placeholder="{{placeholder}}">
+      <ul class="token-results"></ul>
+    </li>
+  </ul>
+</script>
+<script type="text/x-handlebars-template" id="tokenResultTemplate">
+  <li class="token-result{{#if isSelected}} token-disabled{{/if}}" data-token-id="{{id}}" data-token-result='{{data}}'>{{{name}}}</li>
+</script>
+<script src="src/jquery.inlineTokenizer.js"></script>
+<script>
+$(function() {
+  var languages = {"ee":"Ewe","gaa":"Gaa","uz":"אוזבקית","ug":"אויגהור","oc":"אוקסיטנית","uk":"אוקראינית","ur":"אורדו","om":"אורומו","or":"אורייה","az":"אזרבייג'אנית","ig":"איגדו","it":"איטלקית","id":"אינדונזית","ia":"אינטרלינגוה","is":"איסלנדית","ga":"אירית","sq":"אלבנית","am":"אמהרית","en":"אנגלית","et":"אסטונית","eo":"אספרנטו","af":"אפריקאנס","ak":"אקאן","hy":"ארמנית","eu":"באסקית","bg":"בולגרית","bs":"בוסנית","bh":"ביהארי","be":"בלארוסית","bem":"במבה","bn":"בנגאלית","br":"ברטונית","ka":"גאורגית","gn":"גואראני","gu":"גוג'אראטי","gl":"גליציאנית","de":"גרמנית","da":"דנית","ha":"האוסה","haw":"הוואית","nl":"הולנדית","hu":"הונגרית","hi":"הינדי","wo":"וולוף","cy":"וולשית","vi":"וייטנאמית","zu":"זולו","tt":"טאטארית","ta":"טאמילית","tg":"טג'יקית","tw":"טווי","tum":"טומבוקה","to":"טונגה","tr":"טורקית","tk":"טורקמנית","ti":"טיגרינאית","te":"טלוגו","el":"יוונית","yo":"יורובה","yi":"יידיש","ja":"יפנית","ku":"כורדית","ckb":"כורדית (סוראני)","lo":"לאו","ach":"לואו","lg":"לוגאנדה","loz":"לוזי","lv":"לטווית","la":"לטינית","lt":"ליטאית","ln":"לינגאלה","mi":"מאורית","ml":"מאלאיאלם","ms":"מאלזית","mr":"מאראתי","mo":"מולדווית","mn":"מונגולית","sr-ME":"מונטנגרי","mg":"מלגשית","mt":"מלטזית","mk":"מקדונית","no":"נורווגית","nn":"נורווגית (נינורסק)","ne":"נפאלית","su":"סודנית","sw":"סוואהילית","nso":"סוטו צפונית","so":"סומלית","tn":"סטסוואנה","sd":"סינדהי","si":"סינהליזית","zh-TW":"סינית (מסורתית)","zh-CN":"סינית (פשוטה)","sl":"סלובנית","sk":"סלובקית","st":"ססות'ו","es":"ספרדית","es-419":"ספרדית (אמריקה הלטינית)","gd":"סקוטית גאלית","sh":"סרבו-קרואטית","sr":"סרבית","iw":"עברית","ar":"ערבית","pl":"פולנית","pa":"פונג'אבית","pt-BR":"פורטוגזית (ברזיל)","pt-PT":"פורטוגזית (פורטוגל)","pcm":"פידג'ין ניגרי","tl":"פיליפינית","fi":"פינית","fo":"פרואיזית","fy":"פריזית","fa":"פרסית","ps":"פשטו","lua":"צ'ילובה","ny":"צ'יצ'ווה","cs":"צ'כית","chr":"צ'רוקי","fr":"צרפתית","kn":"קאנאדה","xh":"קוהסה","kg":"קונגו","ko":"קוריאנית","co":"קורסיקאית","kk":"קזאחית","ca":"קטלאנית","ky":"קירגיזית","rn":"קירודנית","km":"קַמְבּוֹדִית","rw":"קנירואנדית","qu":"קצ'ואה","hr":"קרואטית","ht":"קריאולית האיטית","crs":"קריאולית סיישלית","mfe":"קריאולית של מאוריציוס","kri":"קריו (סיירה לאון)","ro":"רומנית","rm":"רומנש","nyn":"רונייקיטארה","ru":"רוסית","sv":"שוודית","sn":"שונה","jw":"שפת יאווה","th":"תאילנדית"};
+  var sizes = [100, 120, 140, 160];
+
+  $("select[multiple]").inlineTokenizer({
+    cache: languages
+  }).each(function() {
+    $(this).css({ "font-size": sizes.shift() + "%" });
+  });;
+  
+});
+</script>
+</head>
+<body>
+  <form>
+    <select multiple name="languages-small">
+      <option value="iw" selected>עברית</option>
+    </select>
+    <select multiple name="languages-normal">
+      <option value="iw" selected>עברית</option>
+    </select>
+    <select multiple name="languages-big">
+      <option value="iw" selected>עברית</option>
+    </select>
+    <select multiple name="languages-bigger">
+      <option value="iw" selected>עברית</option>
+    </select>
+  </form>
+</body>
+</html>
