@@ -5,6 +5,8 @@
     defaults = {
       isRTL: true,
       placeholder: "חיפוש",
+      minChars: 2,
+      searchDataType: "json"
       resultsDelay: 100,
       searchDelay: 200,
       searchParameter: "q",
@@ -59,7 +61,7 @@
     },
     selectors = {},
     classNames = {
-      wrapper: "token-wrapper",
+      wrapper  : "token-wrapper",
       item     : "token-item",
       itemInput: "token-item-input",
       remove   : "token-item-remove",
@@ -68,7 +70,8 @@
       result   : "token-result",
       disabled : "token-disabled",
       original : "token-input-original",
-      selected : "token-selected"
+      selected : "token-selected",
+      loading  : "token-loading"
     },
     dataAttrs = {
       id: "token-id",
@@ -149,7 +152,7 @@
     var
       $originalInput = $(this),
       $wrapper = $(options.createWrapper({
-        placeholder: $originalInput.attr("placeholder") || options.placeholder,
+        placeholder: options.placeholder || $originalInput.attr("placeholder"),
         wideResults: options.wideResults
       })),
       $input = $wrapper.find(selectors.input),
@@ -160,11 +163,21 @@
       selectedTokens = TokenList(options.populateWith),
       searchRequest = null;
 
+    // Default select callback
+    options.onSelect = $.isFunction(options.onSelect) ? options.onSelect : addToken;
+
+    // Default search provider
+    options.onSearch = $.isFunction(options.onSearch) ? options.onSearch : defaultSearch;
+
+    function defaultSearch(tokens, q) {
+      return $.map(tokens, function(token) {
+        if (token.name.toLowerCase().indexOf(q) !== -1) return token;
+      });
+    }
+
     function searchCache(q) {
       return $.Deferred(function(deferred) {
-        var results = $.map(cache.tokens, function(token) {
-          if (token.name.toLowerCase().indexOf(q) !== -1) return token;
-        });
+        var results = options.onSearch(cache.tokens, q);
         deferred[results.length ? "resolve" : "reject"](results, q);
       });
     }
@@ -172,6 +185,7 @@
     function searchServer(q) {
       var searchOptions = {
         url: options.searchUrl,
+        dataType: options.searchDataType,
         data: {}
       };
 
@@ -317,7 +331,7 @@
     var search = debounce(function(q) {
       q = String(q).toLowerCase();
 
-      if (!q) {
+      if (!q || q.length < options.minChars) {
         clearResults();
         return;
       }
@@ -330,7 +344,12 @@
         // Cancel previous request
         if (searchRequest) searchRequest.abort();
 
+        $wrapper.addClass(classNames.loading);
+
         searchRequest = searchServer(q)
+          .always(function() {
+            $wrapper.removeClass(classNames.loading);
+          })
           .success(function(results) {
             if (options.parseResults) results = options.parseResults(results);
             appendResults(results, q);
@@ -357,7 +376,7 @@
       .on("keydown", function(e) {
         switch (e.keyCode) {
           case KEY.ENTER:
-            addToken(getSelectedResult());
+            options.onSelect(getSelectedResult());
             e.preventDefault();
             break;
           case KEY.DOWN:
@@ -393,7 +412,7 @@
     $results
       .on("mouseleave", delayedClearResults)
       .on("click", selectors.result, function() {
-        addToken($(this));
+        options.onSelect($(this));
       });
 
     $wrapper

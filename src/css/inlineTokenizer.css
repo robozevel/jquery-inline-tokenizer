@@ -87,10 +87,6 @@
   display: none;
 }
 
-.token-item .token-item-remove:empty ~  {
-  display: none;
-}
-
 .token-item.token-selected .token-item-remove {
   color: rgba(255, 255, 255, .5);
 }
