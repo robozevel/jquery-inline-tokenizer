@@ -411,6 +411,9 @@
 
     $results
       .on("mouseleave", delayedClearResults)
+      .on("mouseenter", selectors.result, function() {
+        scrollToResult($(this));
+      })
       .on("click", selectors.result, function() {
         options.onSelect($(this));
       });
