@@ -6,7 +6,7 @@
       isRTL: true,
       placeholder: "חיפוש",
       minChars: 2,
-      searchDataType: "json"
+      searchDataType: "json",
       resultsDelay: 100,
       searchDelay: 200,
       searchParameter: "q",
