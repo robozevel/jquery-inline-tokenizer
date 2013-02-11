@@ -2,6 +2,7 @@
   "use strict";
 
   var
+    pluginName = "inlineTokenizer",
     defaults = {
       isRTL: true,
       placeholder: "חיפוש",
@@ -30,7 +31,7 @@
           list = "";
 
         function wrapMatches(text) {
-          return new Handlebars.SafeString(text.replace(rQuery, function(match) {
+          return new Handlebars.SafeString(String(text).replace(rQuery, function(match) {
             return "<em>" + Handlebars.Utils.escapeExpression(match) + "</em>";
           }));
         }
@@ -79,6 +80,7 @@
       result: "token-result"
     },
     inputEvent = "oninput" in window ? "input" : "keyup keydown",
+    events = {},
     KEY = {
       BACKSPACE: 8,
       DELETE   : 46,
@@ -93,6 +95,10 @@
 
   $.each(classNames, function(key, className) {
     selectors[key] = "." + className;
+  });
+
+  $.each(["add", "remove", "select", "search", "beforeSearch", "results"], function(i, eventName) {
+    events[eventName] = pluginName + ":" + eventName;
   });
 
   function Token(id, name) {
@@ -146,307 +152,6 @@
   function autoResizeWidth(input) {
     input.style.width = "auto";
     input.style.width = (input.scrollWidth + input.offsetWidth - input.clientWidth) + "px";
-  }
-
-  function tokenize(options) {
-    var
-      $originalInput = $(this),
-      $wrapper = $(options.createWrapper({
-        placeholder: options.placeholder || $originalInput.attr("placeholder"),
-        wideResults: options.wideResults
-      })),
-      $input = $wrapper.find(selectors.input),
-      $itemInput = $wrapper.find(selectors.itemInput),
-      $results = $wrapper.find(selectors.results),
-      inputName = $originalInput.attr("name") || options.inputName,
-      cache = TokenList(options.cache.concat(options.populateWith)),
-      selectedTokens = TokenList(options.populateWith),
-      searchRequest = null;
-
-    // Default select callback
-    options.onSelect = $.isFunction(options.onSelect) ? options.onSelect : addToken;
-
-    // Default search provider
-    options.onSearch = $.isFunction(options.onSearch) ? options.onSearch : defaultSearch;
-
-    function defaultSearch(tokens, q) {
-      return $.map(tokens, function(token) {
-        if (token.name.toLowerCase().indexOf(q) !== -1) return token;
-      });
-    }
-
-    function searchCache(q) {
-      return $.Deferred(function(deferred) {
-        var results = options.onSearch(cache.tokens, q);
-        deferred[results.length ? "resolve" : "reject"](results, q);
-      });
-    }
-
-    function searchServer(q) {
-      var searchOptions = {
-        url: options.searchUrl,
-        dataType: options.searchDataType,
-        data: {}
-      };
-
-      searchOptions.data[options.searchParameter] = q;
-
-      return $.ajax(searchOptions);
-    }
-
-    function populateResults(results, q) {
-      $results.html(options.formatResults(results, q, selectedTokens.ids()));
-
-      // Select first match
-      selectResult($results.find("li").not(selectors.disabled).first());
-    }
-
-    function appendResults(results, q) {
-      if (results && results.length) {
-        var $prevResults = $results.find("li").not(selectors.disabled);
-        $results.append(options.formatResults(results, q, selectedTokens.ids()));
-        if (!$prevResults.length) selectResult($results.find("li").not(selectors.disabled).first());
-      }
-    }
-
-    function clearResults() {
-      $results.empty();
-    }
-
-    function addToken($result) {
-      if ($result.length === 0) return false;
-      var result = $result.data(dataAttrs.result);
-      if (!$.isPlainObject(result)) result = JSON.parse(result);
-      result.inputName = inputName;
-      if (result && selectedTokens.get(result.id) === null) {
-        $itemInput.before(options.formatToken(result));
-        selectedTokens.add(result);
-        $input.val("");
-        clearResults();
-        return true;
-      }
-    }
-
-    function selectToken($token) {
-      if ($token && $token.length) {
-        $token.addClass(classNames.selected);
-      } else {
-        deselectTokens();
-      }
-    }
-
-    function removeTokens($tokens) {
-      $tokens.each(function(i, token) {
-        var $token = $(token);
-        selectedTokens.remove($token.data(dataAttrs.id));
-        $token.remove();
-      });
-      return !!$tokens.length;
-    }
-
-    function attemptRemoveTokens() {
-      if (!removeTokens($wrapper.find(selectors.item + selectors.selected))) {
-        selectToken($itemInput.prev(selectors.item));
-      };
-    }
-
-    function deselectTokens() {
-      $wrapper.find(selectors.item + selectors.selected).removeClass(classNames.selected);
-    }
-
-    function getSelectedResult() {
-      return $results.find(selectors.selected).first();
-    }
-
-    function deselectResult($result) {
-      $result.removeClass(classNames.selected);
-    }
-
-    function scrollToResult($result) {
-      var
-        scrollTop,
-        // containerHeight = parseInt($results.css("maxHeight"), 10),
-        containerHeight = $results.height(),
-        visibleTop = $results.scrollTop(),
-        visibleBottom = containerHeight + visibleTop,
-        resultTop = $result.position().top + $results.scrollTop(),
-        resultBottom = resultTop + $result.outerHeight();
-
-      if (resultBottom >= visibleBottom) {
-        scrollTop = resultBottom - containerHeight;
-        $results.scrollTop(scrollTop > 0 ? scrollTop : 0);
-      } else if (resultTop < visibleTop) {
-        $results.scrollTop(resultTop);
-      }
-
-    }
-
-    function selectResult($result) {
-      if ($result.length) {
-        $result.addClass(classNames.selected);
-        scrollToResult($result);
-      }
-    }
-
-    function selectNextResult() {
-      var $next, $selectedResult = getSelectedResult();
-      if ($selectedResult.length) {
-        deselectResult($selectedResult);
-        $next = $selectedResult.next();
-        if ($next.length) {
-          selectResult($next);
-        } else {
-          selectResult($results.find(selectors.result).first());
-        }
-      } else {
-        selectResult($results.find(selectors.result).first());
-      }
-    }
-
-    function selectPrevResult() {
-      var $prev, $selectedResult = getSelectedResult();
-      if ($selectedResult.length) {
-        deselectResult($selectedResult);
-        $prev = $selectedResult.prev();
-        if ($prev.length) {
-          selectResult($prev);
-        } else {
-          selectResult($results.find(selectors.result).last());
-        }
-      } else {
-        selectResult($results.find(selectors.result).last());
-      }
-    }
-
-    function displayCachedTokens() {
-      populateResults($.map(cache.tokens, function(token) {
-        return token;
-      }));
-    }
-
-    var delayedClearResults = debounce(function() {
-      if ($input.is(":focus") === false && $results.is(":hover") === false) clearResults();
-    }, options.resultsDelay);
-
-    var search = debounce(function(q) {
-      q = String(q).toLowerCase();
-
-      if (!q || q.length < options.minChars) {
-        clearResults();
-        return;
-      }
-
-      searchCache(q)
-        .done(populateResults)
-        .fail(clearResults);
-
-      if (options.searchUrl) {
-        // Cancel previous request
-        if (searchRequest) searchRequest.abort();
-
-        $wrapper.addClass(classNames.loading);
-
-        searchRequest = searchServer(q)
-          .always(function() {
-            $wrapper.removeClass(classNames.loading);
-          })
-          .success(function(results) {
-            if (options.parseResults) results = options.parseResults(results);
-            appendResults(results, q);
-          });
-      }
-
-    }, options.searchDelay);
-
-    // Bind events
-    $input
-      .on(inputEvent, function(e) {
-        // Search cache & server
-        search($input.val().trim());
-
-        // Adjust width while typing
-        autoResizeWidth(this);
-      })
-      .on("click", displayCachedTokens)
-      .on("blur", function(e) {
-        delayedClearResults();
-        deselectTokens();
-      })
-      // Enable navigating results
-      .on("keydown", function(e) {
-        switch (e.keyCode) {
-          case KEY.ENTER:
-            options.onSelect(getSelectedResult());
-            e.preventDefault();
-            break;
-          case KEY.DOWN:
-            if ($results.is(":visible")) {
-              selectNextResult();
-            } else {
-              displayCachedTokens();
-            }
-            deselectTokens();
-            e.preventDefault();
-            break;
-          case KEY.UP:
-            selectPrevResult();
-            e.preventDefault();
-            break;
-          case KEY.DELETE:
-          case KEY.BACKSPACE:
-            if ($input.val() === "") {
-                attemptRemoveTokens();
-                clearResults();
-              }
-            break;
-          case KEY.ESC:
-            clearResults();
-            deselectTokens();
-            break;
-          default:
-            deselectTokens();
-            break;
-        }
-      });
-
-    $results
-      .on("mouseleave", delayedClearResults)
-      .on("mouseenter", selectors.result, function() {
-        scrollToResult($(this));
-      })
-      .on("click", selectors.result, function() {
-        options.onSelect($(this));
-      });
-
-    $wrapper
-      //.on("click", displayCachedTokens)
-      .on("click", function() {
-        $input.focus();
-      })
-      // .on("click", selectors.item, function() {
-      //   $(this).toggleClass(classNames.selected);
-      // })
-      .on("click", selectors.remove, function() {
-        removeTokens($(this).closest(selectors.item));
-      });
-
-    // Populate list
-    $wrapper.prepend(options.formatTokens(selectedTokens.tokens, inputName));
-
-    // Hide and replace original text input
-    $originalInput
-      .addClass(classNames.original)
-      .removeAttr("name")
-      .replaceWith($wrapper);
-
-    $input
-      // Prevent input overflow
-      .css("max-width", $wrapper.width())
-      .attr("size", 1)
-      // Append before original input
-      .before($originalInput);
-
-    return $wrapper;
   }
 
   // Utils
@@ -510,25 +215,358 @@
     }).concat(tokensArray);
   }
 
-  function initTokenizer(input, options) {
+  function InlineTokenizer(input, options) {
     switch (input.type) {
       case "select-multiple":
         var selectedOptions = input.selectedOptions || $.filter("[selected]", input.options);
         options.cache = mapTokens(input.options, options.cache);
         options.populateWith = mapTokens(selectedOptions, options.populateWith);
-        return tokenize.call(input, options);
+        this.init(input, options);
+        break;
       case "text":
         options.cache = mapTokens([], options.cache);
         options.populateWith = mapTokens([], options.populateWith);
-        return tokenize.call(input, options);
+        this.init(input, options);
+        break;
     };
+  }
+
+  InlineTokenizer.prototype = {
+    init: function(input, options) {
+      var
+        $originalInput = $(input),
+        $wrapper = $(options.createWrapper({
+          placeholder: options.placeholder || $originalInput.attr("placeholder"),
+          wideResults: options.wideResults
+        })),
+        $input = $wrapper.find(selectors.input),
+        $itemInput = $wrapper.find(selectors.itemInput),
+        $results = $wrapper.find(selectors.results),
+        inputName = $originalInput.attr("name") || options.inputName,
+        cache = TokenList(options.cache.concat(options.populateWith)),
+        selectedTokens = TokenList(options.populateWith),
+        searchRequest = null,
+        publish = $.fn.trigger.bind($originalInput);
+
+      // Default search provider
+      options.searchProvider = $.isFunction(options.searchProvider) ? options.searchProvider : defaultSearchProvider;
+
+      function defaultSearchProvider(tokens, q) {
+        return $.map(tokens, function(token) {
+          if (token.name.toLowerCase().indexOf(q) !== -1) return token;
+        });
+      }
+
+      function searchCache(q) {
+        return $.Deferred(function(deferred) {
+          var results = options.searchProvider(cache.tokens, q);
+          deferred[results.length ? "resolve" : "reject"](results, q);
+        });
+      }
+
+      function searchServer(q) {
+        var searchOptions = {
+          url: options.searchUrl,
+          dataType: options.searchDataType,
+          data: {}
+        };
+
+        if (options.beforeSearch) {
+          searchOptions = options.beforeSearch(q, searchOptions);
+        } else {
+          searchOptions.data[options.searchParameter] = q;
+        }
+
+        publish(events.beforeSearch, [q, searchOptions]);
+
+        return $.ajax(searchOptions);
+      }
+
+      function populateResults(results, q) {
+        $results.html(options.formatResults(results, q, selectedTokens.ids()));
+
+        // Select first match
+        selectResult($results.find("li").not(selectors.disabled).first());
+      }
+
+      function appendResults(results, q) {
+        if (results && results.length) {
+          var $prevResults = $results.find("li").not(selectors.disabled);
+          $results.append(options.formatResults(results, q, selectedTokens.ids()));
+          if (!$prevResults.length) selectResult($results.find("li").not(selectors.disabled).first());
+        }
+      }
+
+      function clearResults() {
+        $results.empty();
+      }
+
+      function selectToken($token) {
+        if ($token && $token.length) {
+          $token.addClass(classNames.selected);
+        } else {
+          deselectTokens();
+        }
+      }
+
+      function removeTokens($tokens) {
+        $tokens.each(function(i, token) {
+          publish(events.remove, $(token));
+        });
+        return !!$tokens.length;
+      }
+
+      function attemptRemoveTokens() {
+        if (!removeTokens($wrapper.find(selectors.item + selectors.selected))) {
+          selectToken($itemInput.prev(selectors.item));
+        };
+      }
+
+      function deselectTokens() {
+        $wrapper.find(selectors.item + selectors.selected).removeClass(classNames.selected);
+      }
+
+      function getSelectedResult() {
+        return $results.find(selectors.selected).first();
+      }
+
+      function deselectResult($result) {
+        $result.removeClass(classNames.selected);
+      }
+
+      function scrollToResult($result) {
+        var
+          scrollTop,
+          containerHeight = $results.height(),
+          visibleTop = $results.scrollTop(),
+          visibleBottom = containerHeight + visibleTop,
+          resultTop = $result.position().top + $results.scrollTop(),
+          resultBottom = resultTop + $result.outerHeight();
+
+        if (resultBottom >= visibleBottom) {
+          scrollTop = resultBottom - containerHeight;
+          $results.scrollTop(scrollTop > 0 ? scrollTop : 0);
+        } else if (resultTop < visibleTop) {
+          $results.scrollTop(resultTop);
+        }
+
+      }
+
+      function selectResult($result) {
+        if ($result.length) {
+          $result.addClass(classNames.selected);
+          scrollToResult($result);
+        }
+      }
+
+      function selectNextResult() {
+        var $next, $selectedResult = getSelectedResult();
+        if ($selectedResult.length) {
+          deselectResult($selectedResult);
+          $next = $selectedResult.next();
+          if ($next.length) {
+            selectResult($next);
+          } else {
+            selectResult($results.find(selectors.result).first());
+          }
+        } else {
+          selectResult($results.find(selectors.result).first());
+        }
+      }
+
+      function selectPrevResult() {
+        var $prev, $selectedResult = getSelectedResult();
+        if ($selectedResult.length) {
+          deselectResult($selectedResult);
+          $prev = $selectedResult.prev();
+          if ($prev.length) {
+            selectResult($prev);
+          } else {
+            selectResult($results.find(selectors.result).last());
+          }
+        } else {
+          selectResult($results.find(selectors.result).last());
+        }
+      }
+
+      function displayCachedTokens() {
+        populateResults($.map(cache.tokens, function(token) {
+          return token;
+        }));
+      }
+
+      var delayedClearResults = debounce(function() {
+        if ($input.is(":focus") === false && $results.is(":hover") === false) clearResults();
+      }, options.resultsDelay);
+
+      var search = debounce(function(q) {
+        q = String(q).toLowerCase();
+
+        if (!q || q.length < options.minChars) {
+          clearResults();
+          return;
+        }
+
+        searchCache(q)
+          .done(populateResults)
+          .fail(clearResults);
+
+        if (options.searchUrl) {
+          // Cancel previous request
+          if (searchRequest) searchRequest.abort();
+
+          searchRequest = searchServer(q)
+            .success(function(results) {
+              if (options.parseResults) results = options.parseResults(results);
+              publish(events.results, [results, q]);
+            });
+
+          publish(events.search, [q, searchRequest]);
+        }
+
+      }, options.searchDelay);
+
+      // Bind events
+      $input
+        .on(inputEvent, function(e) {
+          // Search cache & server
+          search($input.val().trim());
+
+          // Adjust width while typing
+          autoResizeWidth(this);
+        })
+        .on("click", displayCachedTokens)
+        .on("blur", function(e) {
+          delayedClearResults();
+          deselectTokens();
+        })
+        // Enable navigating results
+        .on("keydown", function(e) {
+          switch (e.keyCode) {
+            case KEY.ENTER:
+              publish(events.select, getSelectedResult());
+              e.preventDefault();
+              break;
+            case KEY.DOWN:
+              if ($results.is(":visible")) {
+                selectNextResult();
+              } else {
+                displayCachedTokens();
+              }
+              deselectTokens();
+              e.preventDefault();
+              break;
+            case KEY.UP:
+              selectPrevResult();
+              e.preventDefault();
+              break;
+            case KEY.DELETE:
+            case KEY.BACKSPACE:
+              if ($input.val() === "") {
+                  attemptRemoveTokens();
+                  clearResults();
+                }
+              break;
+            case KEY.ESC:
+              clearResults();
+              deselectTokens();
+              break;
+            default:
+              deselectTokens();
+              break;
+          }
+        });
+
+      $results
+        .on("mouseleave", delayedClearResults)
+        .on("mouseenter", selectors.result, function() {
+          scrollToResult($(this));
+        })
+        .on("click", selectors.result, function() {
+          publish(events.select, $(this));
+        });
+
+      $wrapper
+        //.on("click", displayCachedTokens)
+        .on(events.select, function(e, element) {
+          var $result = $(element);
+          if ($result.length === 0) return false;
+          var result = $result.data(dataAttrs.result);
+          if (!$.isPlainObject(result)) result = JSON.parse(result);
+          result.inputName = inputName;
+          if (result && selectedTokens.get(result.id) === null) {
+            publish(events.add, result);
+          }
+        })
+        .on(events.add, function(e, result) {
+          $itemInput.before(options.formatToken(result));
+          selectedTokens.add(result);
+          $input.val("");
+          clearResults();
+        })
+        .on(events.remove, function(e, token) {
+          var $token = $(token);
+          selectedTokens.remove($token.data(dataAttrs.id));
+          $token.remove();
+        })
+        .on(events.beforeSearch, function() {
+          $wrapper.addClass(classNames.loading);
+        })
+        .on(events.search, function(e, q, request) {
+          request.always(function() {
+            $wrapper.removeClass(classNames.loading);
+          });
+        })
+        .on(events.results, function(e, results, q) {
+          appendResults(results, q);
+        })
+        .on("click", function() {
+          $input.focus();
+        })
+        // .on("click", selectors.item, function() {
+        //   $(this).toggleClass(classNames.selected);
+        // })
+        .on("click", selectors.remove, function() {
+          removeTokens($(this).closest(selectors.item));
+        });
+
+      // Populate list
+      $wrapper.prepend(options.formatTokens(selectedTokens.tokens, inputName));
+
+      // Hide and replace original text input
+      $originalInput
+        .addClass(classNames.original)
+        .removeAttr("name")
+        .replaceWith($wrapper);
+
+      $input
+        // Prevent input overflow
+        .css("max-width", $wrapper.width())
+        .attr("size", 1)
+        // Append before original input
+        .before($originalInput);
+
+      this.elements = {
+        wrapper: $wrapper,
+        originalInput: $originalInput,
+        input: $input,
+        itemInput: $itemInput,
+        results: $results
+      };
+
+      this.options = options;
+      this.cache = cache;
+
+    }
   }
 
   $.Token = Token;
   
-  $.fn.inlineTokenizer = function(options) {
-    return this.map(function(i, input) {
-      return initTokenizer(input, $.extend({}, defaults, options));
+  $.fn[pluginName] = function(options) {
+    return this.each(function(i, input) {
+      if (!$.data(input, pluginName)) {
+        $.data(input, pluginName, new InlineTokenizer(input, $.extend({}, defaults, options)));
+      }
     });
   }
 
