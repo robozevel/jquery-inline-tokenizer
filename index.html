@@ -25,7 +25,7 @@
 
 </style>
 <script type="text/x-handlebars-template" id="tokenTemplate">
-  <li class="token-item" data-token-id="{{id}}" data-token-name="{{name}}">
+  <li class="token-item" data-token="{{data}}">
     <input type="hidden" value="{{id}}" name="{{inputName}}[]">
     <span class="token-item-name">{{name}}</span>
     <a class="token-item-remove">&times;</a>
@@ -41,7 +41,7 @@
   </ul>
 </script>
 <script type="text/x-handlebars-template" id="tokenResultTemplate">
-  <li class="token-result{{#if isSelected}} token-disabled{{/if}}" data-token-id="{{id}}" data-token-result='{{data}}'>{{{name}}}</li>
+  <li class="token-result{{#if isSelected}} token-disabled{{/if}}" data-token='{{data}}'>{{{name}}}</li>
 </script>
 <script src="src/jquery.inlineTokenizer.js"></script>
 <script>
@@ -50,41 +50,11 @@ $(function() {
   var sizes = [100, 120, 140, 160];
 
   $("select[multiple]").inlineTokenizer({
-    cache: languages,
-    searchUrl: 'http://en.wikipedia.org/w/api.php?action=query&format=json&callback=?',
-    searchDataType: "JSONP",
-    beforeSearch: function(q, searchOptions) {
-      return $.extend(searchOptions, {
-        cache: true,
-        data: {
-          titles: q,
-          prop: 'extracts',
-          exsentences: 20,
-          // uselang: 'en',
-          redirects: true,
-        }
-      });
-    },
-    parseResults: function(data) {
-      var result, pages = data.query.pages;
-      for (var pageId in pages) if (pageId === -1) return;
-      result = pages[pageId];
-      result.id = result.pageid;
-      result.name = result.title;
-      return [result];
-    }
-    // wideResults: true
+    cache: languages
   }).each(function() {
     var wrapper = $(this).data("inlineTokenizer").elements.wrapper;
     wrapper.css({ "font-size": sizes.shift() + "%" });
   });
-
-  // .on("inlineTokenizer:add", function(e) {
-  //   var options = $(this).data("inlineTokenizer"),
-  //       tokenCount = options.elements.wrapper.find(".token-item").length;
-
-  //   if (tokenCount >= 3) e.stopPropagation();
-  // });
 
 });
 

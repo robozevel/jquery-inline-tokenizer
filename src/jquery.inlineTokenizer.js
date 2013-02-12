@@ -1,65 +1,9 @@
-;(function($) {
+;jQuery(function($) {
   "use strict";
 
   var
     pluginName = "inlineTokenizer",
-    defaults = {
-      isRTL: true,
-      placeholder: "חיפוש",
-      minChars: 2,
-      searchDataType: "json",
-      resultsDelay: 100,
-      searchDelay: 200,
-      searchParameter: "q",
-      searchUrl: null,
-      parseResults: null,
-      wideResults: false,
-      createWrapper: Handlebars.compile( $("#tokenWrapperTemplate").html() ),
-      formatToken: Handlebars.compile( $("#tokenTemplate").html() ),
-      formatTokens: function(items, inputName) {
-        var options = this;
-        return $.map(items, function(item) {
-          item.inputName = inputName;
-          return options.formatToken(item);
-        }).join("\n");
-      },
-      formatResult: Handlebars.compile( $("#tokenResultTemplate").html() ),
-      formatResults: function(results, q, selectedTokensIds) {
-        var
-          template = this.formatResult,
-          rQuery = RegExp.Safe(q, "gi"),
-          list = "";
-
-        function wrapMatches(text) {
-          return new Handlebars.SafeString(String(text).replace(rQuery, function(match) {
-            return "<em>" + Handlebars.Utils.escapeExpression(match) + "</em>";
-          }));
-        }
-
-        /*if (options.freeText) {
-          list += template({
-            id        : q,
-            name      : wrapMatches(q),
-            data      : JSON.stringify({
-              id: q,
-              name: q
-            }),
-            isSelected: false
-          });
-        }*/
-
-        $.each(results, function(i, result) {
-          list += template({
-            id        : result.id,
-            name      : q ? wrapMatches(result.name) : result.name,
-            data      : JSON.stringify(result),
-            isSelected: (selectedTokensIds.indexOf(result.id) !== -1)
-          });
-        });
-
-        return list;
-      }
-    },
+    tokenData = "token",
     selectors = {},
     classNames = {
       wrapper  : "token-wrapper",
@@ -73,11 +17,6 @@
       original : "token-input-original",
       selected : "token-selected",
       loading  : "token-loading"
-    },
-    dataAttrs = {
-      id: "token-id",
-      name: "token-name",
-      result: "token-result"
     },
     inputEvent = "oninput" in window ? "input" : "keyup keydown",
     events = {},
@@ -97,8 +36,8 @@
     selectors[key] = "." + className;
   });
 
-  $.each(["add", "remove", "select", "search", "beforeSearch", "results"], function(i, eventName) {
-    events[eventName] = pluginName + ":" + eventName;
+  $.each(["add", "remove", "selectResult", "search", "beforeSearch", "results"], function(i, eventName) {
+    events[eventName] = eventName + "." + pluginName;
   });
 
   function Token(id, name) {
@@ -248,15 +187,6 @@
         searchRequest = null,
         publish = $.fn.trigger.bind($originalInput);
 
-      // Default search provider
-      options.searchProvider = $.isFunction(options.searchProvider) ? options.searchProvider : defaultSearchProvider;
-
-      function defaultSearchProvider(tokens, q) {
-        return $.map(tokens, function(token) {
-          if (token.name.toLowerCase().indexOf(q) !== -1) return token;
-        });
-      }
-
       function searchCache(q) {
         return $.Deferred(function(deferred) {
           var results = options.searchProvider(cache.tokens, q);
@@ -284,16 +214,13 @@
 
       function populateResults(results, q) {
         $results.html(options.formatResults(results, q, selectedTokens.ids()));
-
-        // Select first match
-        selectResult($results.find("li").not(selectors.disabled).first());
       }
 
       function appendResults(results, q) {
         if (results && results.length) {
           var $prevResults = $results.find("li").not(selectors.disabled);
           $results.append(options.formatResults(results, q, selectedTokens.ids()));
-          if (!$prevResults.length) selectResult($results.find("li").not(selectors.disabled).first());
+          // if (!$prevResults.length) selectResult($results.find("li").not(selectors.disabled).first());
         }
       }
 
@@ -311,7 +238,7 @@
 
       function removeTokens($tokens) {
         $tokens.each(function(i, token) {
-          publish(events.remove, $(token));
+          publish(events.remove, [$(token)]);
         });
         return !!$tokens.length;
       }
@@ -444,7 +371,7 @@
         .on("keydown", function(e) {
           switch (e.keyCode) {
             case KEY.ENTER:
-              publish(events.select, getSelectedResult());
+              publish(events.selectResult, [getSelectedResult()]);
               e.preventDefault();
               break;
             case KEY.DOWN:
@@ -452,6 +379,8 @@
                 selectNextResult();
               } else {
                 displayCachedTokens();
+                // Select first result
+                selectResult($results.find("li").not(selectors.disabled).first());
               }
               deselectTokens();
               e.preventDefault();
@@ -483,19 +412,19 @@
           scrollToResult($(this));
         })
         .on("click", selectors.result, function() {
-          publish(events.select, $(this));
+          publish(events.selectResult, [$(this)]);
         });
 
       $wrapper
         //.on("click", displayCachedTokens)
-        .on(events.select, function(e, element) {
-          var $result = $(element);
+        .on(events.selectResult, function(e, $result) {
           if ($result.length === 0) return false;
-          var result = $result.data(dataAttrs.result);
+          var result = $result.data(tokenData);
           if (!$.isPlainObject(result)) result = JSON.parse(result);
           result.inputName = inputName;
           if (result && selectedTokens.get(result.id) === null) {
-            publish(events.add, result);
+            result.data = JSON.stringify(result);
+            publish(events.add, [result]);
           }
         })
         .on(events.add, function(e, result) {
@@ -504,9 +433,8 @@
           $input.val("");
           clearResults();
         })
-        .on(events.remove, function(e, token) {
-          var $token = $(token);
-          selectedTokens.remove($token.data(dataAttrs.id));
+        .on(events.remove, function(e, $token) {
+          selectedTokens.remove($token.data(tokenData).id);
           $token.remove();
         })
         .on(events.beforeSearch, function() {
@@ -565,9 +493,72 @@
   $.fn[pluginName] = function(options) {
     return this.each(function(i, input) {
       if (!$.data(input, pluginName)) {
-        $.data(input, pluginName, new InlineTokenizer(input, $.extend({}, defaults, options)));
+        $.data(input, pluginName, new InlineTokenizer(input, $.extend({}, $.fn[pluginName].defaults, options)));
       }
     });
   }
 
-}(jQuery));
+  $.fn[pluginName].defaults = {
+    isRTL: true,
+    placeholder: "חיפוש",
+    minChars: 2,
+    searchDataType: "json",
+    resultsDelay: 100,
+    searchDelay: 200,
+    searchParameter: "q",
+    searchUrl: null,
+    parseResults: null,
+    wideResults: false,
+    searchProvider: function(tokens, q) {
+      return $.map(tokens, function(token) {
+        if (token.name.toLowerCase().indexOf(q) !== -1) return token;
+      });
+    },
+    createWrapper: Handlebars.compile( $("#tokenWrapperTemplate").html() ),
+    formatToken: Handlebars.compile( $("#tokenTemplate").html() ),
+    formatTokens: function(items, inputName) {
+      var options = this;
+      return $.map(items, function(item) {
+        item.inputName = inputName;
+        return options.formatToken(item);
+      }).join("\n");
+    },
+    formatResult: Handlebars.compile( $("#tokenResultTemplate").html() ),
+    formatResults: function(results, q, selectedTokensIds) {
+      var
+        template = this.formatResult,
+        rQuery = RegExp.Safe(q, "gi"),
+        list = "";
+
+      function wrapMatches(text) {
+        return new Handlebars.SafeString(String(text).replace(rQuery, function(match) {
+          return "<em>" + Handlebars.Utils.escapeExpression(match) + "</em>";
+        }));
+      }
+
+      /*if (options.freeText) {
+        list += template({
+          id        : q,
+          name      : wrapMatches(q),
+          data      : JSON.stringify({
+            id: q,
+            name: q
+          }),
+          isSelected: false
+        });
+      }*/
+
+      $.each(results, function(i, result) {
+        list += template({
+          id        : result.id,
+          name      : q ? wrapMatches(result.name) : result.name,
+          data      : JSON.stringify(result),
+          isSelected: (selectedTokensIds.indexOf(result.id) !== -1)
+        });
+      });
+
+      return list;
+    }
+  };
+
+});
